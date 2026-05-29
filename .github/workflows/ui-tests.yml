@@ -2,12 +2,12 @@ name: Next-Gen UI Automation Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ] # Tự động chạy khi có code mới đẩy lên nhánh main
 
 jobs:
   test:
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Máy chủ ảo Linux của GitHub
 
     steps:
     - uses: actions/checkout@v3
@@ -22,9 +22,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest playwright pytest-playwright percy-playwright allure-pytest
         python -m playwright install --with-deps chromium
-        npm install -g @percy/cli
 
     - name: Run Tests with Percy Visual AI
       env:
-        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
-      run: npx @percy/cli exec -- pytest tests/
+        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }} # Bảo mật Token của bạn
+      run: npx percy exec -- pytest tests/ --headed
