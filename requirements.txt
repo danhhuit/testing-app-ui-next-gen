@@ -1,15 +1,35 @@
-# Core testing framework
+# ==========================================================
+# NextGen UI Testing - Python dependencies
+# ==========================================================
+# Python khuyến nghị: 3.11.x
+
+# Core test runner
 pytest==8.3.4
-playwright==1.49.1
+
+# Playwright web automation
+playwright==1.60.0
 pytest-playwright==0.6.2
 
-# Visual AI Testing
+# Percy visual regression testing
 percy-playwright==1.0.2
 
-# Reporting
+# Appium mobile web / mobile cross-platform testing
+Appium-Python-Client==5.3.1
+selenium==4.44.0
+
+# Local reporting
 allure-pytest==2.13.5
 pytest-html==4.1.1
 
-# Utilities
-pytest-xdist==3.6.1    # parallel test execution
-pytest-timeout==2.3.1  # timeout cho từng test
+# Test utilities
+pytest-xdist==3.6.1
+pytest-timeout==2.3.1
+
+# Notes:
+# - k6 is a standalone CLI tool, install separately with:
+#   winget install k6 --source winget
+# - Appium server is a Node.js tool, install separately with:
+#   npm install -g appium
+#   appium driver install --source=npm appium-uiautomator2-driver@4.2.9
+# - BrowserStack cloud direct tests use Playwright WebSocket CDP directly,
+#   so browserstack-sdk is NOT required for this project flow.

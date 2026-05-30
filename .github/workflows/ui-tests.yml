@@ -1,30 +1,234 @@
-name: Next-Gen UI Automation Pipeline
+name: NextGen UI Testing CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      run_appium:
+        description: "Run optional Appium Android emulator tests"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      run_browserstack:
+        description: "Run optional BrowserStack cloud tests"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      run_percy:
+        description: "Run web tests through Percy if PERCY_TOKEN is configured"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  test:
-    timeout-minutes: 15
+  web-ui-tests:
+    name: Playwright Web UI Tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest playwright pytest-playwright percy-playwright allure-pytest
-        python -m playwright install --with-deps chromium
-        npm install -g @percy/cli
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-    - name: Run Tests with Percy Visual AI
-      env:
-        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
-      run: npx @percy/cli exec -- pytest tests/
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps chromium
+
+      - name: Prepare report folders
+        run: mkdir -p reports allure-results
+
+      - name: Run Playwright tests without Percy
+        if: ${{ github.event.inputs.run_percy != 'true' }}
+        run: |
+          python -m pytest tests/ -v \
+            --alluredir=allure-results \
+            --html=reports/web_report.html \
+            --self-contained-html
+
+      - name: Run Playwright tests with Percy
+        if: ${{ github.event.inputs.run_percy == 'true' }}
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        run: |
+          if [ -z "$PERCY_TOKEN" ]; then
+            echo "PERCY_TOKEN is not configured. Running tests without Percy."
+            python -m pytest tests/ -v \
+              --alluredir=allure-results \
+              --html=reports/web_report.html \
+              --self-contained-html
+          else
+            npm install -g @percy/cli
+            npx percy exec -- python -m pytest tests/ -v \
+              --alluredir=allure-results \
+              --html=reports/web_report.html \
+              --self-contained-html
+          fi
+
+      - name: Upload pytest HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-pytest-html-report
+          path: reports/web_report.html
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-allure-results
+          path: allure-results
+
+  appium-mobile-tests:
+    name: Optional Appium Mobile Web Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_appium == 'true' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Install Appium server and UiAutomator2 driver
+        run: |
+          npm install -g appium@2.19.0
+          appium driver install --source=npm appium-uiautomator2-driver@4.2.9
+          appium driver list --installed
+
+      - name: Run Appium tests on Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_7
+          script: |
+            adb devices
+            appium --allow-insecure chromedriver_autodownload > appium.log 2>&1 &
+            sleep 20
+            python -m pytest tests_appium/test_appium_mobile_web.py -v --alluredir=allure-results
+
+      - name: Upload Appium logs and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-results
+          path: |
+            allure-results
+            appium.log
+
+  browserstack-cloud-tests:
+    name: Optional BrowserStack Cloud Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_browserstack == 'true' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Check BrowserStack secrets
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          if [ -z "$BROWSERSTACK_USERNAME" ] || [ -z "$BROWSERSTACK_ACCESS_KEY" ]; then
+            echo "Missing BrowserStack secrets. Configure BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY."
+            exit 1
+          fi
+
+      - name: Run BrowserStack Playwright direct tests
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          python -m pytest tests_cloud/test_browserstack_direct.py -v -s --alluredir=allure-results
+
+      - name: Upload BrowserStack Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browserstack-allure-results
+          path: allure-results
+
+  performance-tests:
+    name: k6 Performance Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare report folder
+        run: mkdir -p reports
+
+      - name: Run k6 performance test with Docker
+        run: |
+          if [ -f performance/saucedemo_smoke.js ]; then
+            docker run --rm \
+              -v ${{ github.workspace }}:/scripts \
+              grafana/k6:2.0.0 \
+              run /scripts/performance/saucedemo_smoke.js | tee reports/k6_result.txt
+          else
+            echo "performance/saucedemo_smoke.js not found. Skipping k6 test." | tee reports/k6_result.txt
+          fi
+
+      - name: Upload k6 result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-performance-result
+          path: reports/k6_result.txt
