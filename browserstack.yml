@@ -1,0 +1,18 @@
+userName: ${BROWSERSTACK_USERNAME}
+accessKey: ${BROWSERSTACK_ACCESS_KEY}
+framework: pytest
+
+projectName: NextGen UI Testing
+buildName: Playwright Cloud Run
+
+platforms:
+  - os: Windows
+    osVersion: 11
+    browserName: chrome
+    browserVersion: latest
+
+parallelsPerPlatform: 1
+
+debug: true
+networkLogs: true
+consoleLogs: info

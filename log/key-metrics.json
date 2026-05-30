@@ -1,0 +1,47 @@
+[
+    {
+        "duration": 9.90087890625,
+        "name": "sdk:sendFunnelTestCompleted",
+        "startTime": 1780105419593.548,
+        "worker": "22872-25424",
+        "status": true,
+        "failure": null,
+        "details": null,
+        "entryType": "measure",
+        "platform": 0,
+        "command": null,
+        "testName": null,
+        "hookType": null,
+        "cli": true
+    },
+    {
+        "duration": 1920.361083984375,
+        "name": "sdk:auto-capture",
+        "startTime": 1780105419593.548,
+        "worker": "8052-25424",
+        "status": false,
+        "failure": "send_logs exception: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\NGUYEN~1\\\\AppData\\\\Local\\\\Temp\\\\bstack-logs-b9b7ffe5-dc18-4a49-b39b-592feb7b7a18.tar.gz'",
+        "details": null,
+        "entryType": "measure",
+        "platform": 0,
+        "command": null,
+        "testName": null,
+        "hookType": null,
+        "cli": true
+    },
+    {
+        "duration": 1930.131591796875,
+        "name": "sdk:exit-handler",
+        "startTime": 1780105419593.548,
+        "worker": "6648-25424",
+        "status": true,
+        "failure": null,
+        "details": null,
+        "entryType": "measure",
+        "platform": 0,
+        "command": null,
+        "testName": null,
+        "hookType": null,
+        "cli": true
+    }
+]
